@@ -26,6 +26,7 @@ trait InteractsWithMigrations
 {
     protected function migrateSystem()
     {
+        dd($this->connection);
         $this->connection->system()->getSchemaBuilder()->dropAllTables();
 
         // publish configuration files
