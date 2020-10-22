@@ -86,7 +86,7 @@ jobs:
               run: composer update --no-ansi --no-interaction ${{ env.COMPOSER_ARGS }}
 
             - name: Run tests
-              run: ./vendor/bin/phpunit
+              run: ./vendor/bin/phpunit -c ci.phpunit.xml
               env:
                   TENANCY_DB: testing
                   TENANCY_USERNAME: testing
