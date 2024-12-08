@@ -9,312 +9,110 @@ on:
 jobs:
   php_8_1_apache:
     runs-on: ubuntu-latest
-    services:
-      mysql:
-        image: mysql:latest
-        env:
-          MYSQL_DATABASE: testing
-          MYSQL_USER: testing
-          MYSQL_PASSWORD: testing
-          MYSQL_ALLOW_EMPTY_PASSWORD: yes
-          MYSQL_ROOT_HOST: "%"
-        options: >-
-          --health-cmd="mysqladmin ping --silent"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=3
-        ports:
-          - 3306:3306
-      mariadb:
-        image: mariadb:latest
-        env:
-          MYSQL_DATABASE: testing
-          MYSQL_USER: testing
-          MYSQL_PASSWORD: testing
-          MYSQL_ALLOW_EMPTY_PASSWORD: yes
-          MYSQL_ROOT_HOST: "%"
-        options: >-
-          --health-cmd="mysqladmin ping --silent"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=5
-          --tmpdir=/tmp
-        ports:
-          - 3307:3306
-      pgsql:
-        image: postgres:14
-        env:
-          POSTGRES_DB: testing
-          POSTGRES_USER: testing
-          POSTGRES_PASSWORD: testing
-        options: >-
-          --health-cmd="pg_isready -U testing"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=3
-        ports:
-          - 5432:5432
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
-      - name: Set up PHP
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: 8.1
-          extensions: mbstring, pdo_mysql, pdo_pgsql, gd
+      - name: Set up Docker Compose
+        run: docker-compose -f docker-compose.yml up -d php81-apache
       - name: Install Composer dependencies
-        run: composer install -n --prefer-dist --no-progress -o
+        run: docker exec php81-apache composer install -n --prefer-dist --no-progress -o
       - name: Run tests
         run: |
-          sleep 10
-          mysql --host=127.0.0.1 --port=3306 -e "grant all privileges on *.* to 'testing'@'%' with grant option;"
-          mysql --host=127.0.0.1 --port=3307 -e "grant all privileges on *.* to 'testing'@'%' with grant option;"
-          PGPASSWORD=testing psql --host=127.0.0.1 --port=5432 --username=testing -c "GRANT ALL ON SCHEMA public TO testing;"
-          DB_CONNECTION=mysql DB_HOST=127.0.0.1 DB_PORT=3306 TENANCY_SYSTEM_CONNECTION_NAME=mysql ./vendor/bin/phpunit -c ci.phpunit.xml
-          DB_CONNECTION=mysql DB_HOST=127.0.0.1 DB_PORT=3307 LIMIT_UUID_LENGTH_32=1 TENANCY_SYSTEM_CONNECTION_NAME=mysql ./vendor/bin/phpunit -c ci.phpunit.xml
-          DB_CONNECTION=pgsql DB_HOST=127.0.0.1 DB_PORT=5432 TENANCY_SYSTEM_CONNECTION_NAME=pgsql ./vendor/bin/phpunit -c ci.phpunit.xml
-          DB_CONNECTION=pgsql DB_HOST=127.0.0.1 DB_PORT=5432 TENANCY_SYSTEM_CONNECTION_NAME=pgsql TENANCY_DATABASE_DIVISION_MODE=schema ./vendor/bin/phpunit -c ci.phpunit.xml ./tests/unit-tests/Database/ConnectionTest.php
+          docker exec php81-apache sleep 10
+          docker exec php81-apache mysql --host=mysql -e "grant all privileges on *.* to 'testing'@'%' with grant option;"
+          docker exec php81-apache mysql --host=mariadb -e "grant all privileges on *.* to 'testing'@'%' with grant option;"
+          docker exec php81-apache PGPASSWORD=testing psql --host=pgsql --username=testing -c "GRANT ALL ON SCHEMA public TO testing;"
+          docker exec php81-apache DB_CONNECTION=mysql DB_HOST=mysql TENANCY_SYSTEM_CONNECTION_NAME=mysql ./vendor/bin/phpunit -c ci.phpunit.xml
+          docker exec php81-apache DB_CONNECTION=mysql DB_HOST=mariadb LIMIT_UUID_LENGTH_32=1 TENANCY_SYSTEM_CONNECTION_NAME=mysql ./vendor/bin/phpunit -c ci.phpunit.xml
+          docker exec php81-apache DB_CONNECTION=pgsql DB_HOST=pgsql TENANCY_SYSTEM_CONNECTION_NAME=pgsql ./vendor/bin/phpunit -c ci.phpunit.xml
+          docker exec php81-apache DB_CONNECTION=pgsql DB_HOST=pgsql TENANCY_SYSTEM_CONNECTION_NAME=pgsql TENANCY_DATABASE_DIVISION_MODE=schema ./vendor/bin/phpunit -c ci.phpunit.xml ./tests/unit-tests/Database/ConnectionTest.php
+      - name: Tear down Docker Compose
+        run: docker-compose -f docker-compose.yml down
 
   php_8_1_nginx:
     runs-on: ubuntu-latest
-    services:
-      mysql:
-        image: mysql:latest
-        env:
-          MYSQL_DATABASE: testing
-          MYSQL_USER: testing
-          MYSQL_PASSWORD: testing
-          MYSQL_ALLOW_EMPTY_PASSWORD: yes
-          MYSQL_ROOT_HOST: "%"
-        options: >-
-          --health-cmd="mysqladmin ping --silent"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=3
-        ports:
-          - 3306:3306
-      mariadb:
-        image: mariadb:latest
-        env:
-          MYSQL_DATABASE: testing
-          MYSQL_USER: testing
-          MYSQL_PASSWORD: testing
-          MYSQL_ALLOW_EMPTY_PASSWORD: yes
-          MYSQL_ROOT_HOST: "%"
-        options: >-
-          --health-cmd="mysqladmin ping --silent"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=3
-        ports:
-          - 3307:3306
-      pgsql:
-        image: postgres:14
-        env:
-          POSTGRES_DB: testing
-          POSTGRES_USER: testing
-          POSTGRES_PASSWORD: testing
-        options: >-
-          --health-cmd="pg_isready -U testing"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=3
-        ports:
-          - 5432:5432
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
-      - name: Set up PHP
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: 8.1
-          extensions: mbstring, pdo_mysql, pdo_pgsql, gd
+      - name: Set up Docker Compose
+        run: docker-compose -f docker-compose.yml up -d php81-nginx
       - name: Install Composer dependencies
-        run: composer install -n --prefer-dist --no-progress -o
+        run: docker exec php81-nginx composer install -n --prefer-dist --no-progress -o
       - name: Install Nginx
-        run: sudo apt-get install -y nginx
+        run: docker exec php81-nginx apt-get install -y nginx
       - name: Run tests
         run: |
-          sleep 10
-          mysql --host=127.0.0.1 --port=3306 -e "grant all privileges on *.* to 'testing'@'%' with grant option;"
-          mysql --host=127.0.0.1 --port=3307 -e "grant all privileges on *.* to 'testing'@'%' with grant option;"
-          PGPASSWORD=testing psql --host=127.0.0.1 --port=5432 --username=testing -c "GRANT ALL ON SCHEMA public TO testing;"
-          DB_CONNECTION=mysql DB_HOST=127.0.0.1 DB_PORT=3306 TENANCY_SYSTEM_CONNECTION_NAME=mysql ./vendor/bin/phpunit -c ci.phpunit.xml
-          DB_CONNECTION=mysql DB_HOST=127.0.0.1 DB_PORT=3307 LIMIT_UUID_LENGTH_32=1 TENANCY_SYSTEM_CONNECTION_NAME=mysql ./vendor/bin/phpunit -c ci.phpunit.xml
-          DB_CONNECTION=pgsql DB_HOST=127.0.0.1 DB_PORT=5432 TENANCY_SYSTEM_CONNECTION_NAME=pgsql ./vendor/bin/phpunit -c ci.phpunit.xml
-          DB_CONNECTION=pgsql DB_HOST=127.0.0.1 DB_PORT=5432 TENANCY_SYSTEM_CONNECTION_NAME=pgsql TENANCY_DATABASE_DIVISION_MODE=schema ./vendor/bin/phpunit -c ci.phpunit.xml ./tests/unit-tests/Database/ConnectionTest.php
+          docker exec php81-nginx sleep 10
+          docker exec php81-nginx mysql --host=mysql -e "grant all privileges on *.* to 'testing'@'%' with grant option;"
+          docker exec php81-nginx mysql --host=mariadb -e "grant all privileges on *.* to 'testing'@'%' with grant option;"
+          docker exec php81-nginx PGPASSWORD=testing psql --host=pgsql --username=testing -c "GRANT ALL ON SCHEMA public TO testing;"
+          docker exec php81-nginx DB_CONNECTION=mysql DB_HOST=mysql TENANCY_SYSTEM_CONNECTION_NAME=mysql ./vendor/bin/phpunit -c ci.phpunit.xml
+          docker exec php81-nginx DB_CONNECTION=mysql DB_HOST=mariadb LIMIT_UUID_LENGTH_32=1 TENANCY_SYSTEM_CONNECTION_NAME=mysql ./vendor/bin/phpunit -c ci.phpunit.xml
+          docker exec php81-nginx DB_CONNECTION=pgsql DB_HOST=pgsql TENANCY_SYSTEM_CONNECTION_NAME=pgsql ./vendor/bin/phpunit -c ci.phpunit.xml
+          docker exec php81-nginx DB_CONNECTION=pgsql DB_HOST=pgsql TENANCY_SYSTEM_CONNECTION_NAME=pgsql TENANCY_DATABASE_DIVISION_MODE=schema ./vendor/bin/phpunit -c ci.phpunit.xml ./tests/unit-tests/Database/ConnectionTest.php
+      - name: Tear down Docker Compose
+        run: docker-compose -f docker-compose.yml down
 
   php_8_2_apache:
     runs-on: ubuntu-latest
-    services:
-      mysql:
-        image: mysql:latest
-        env:
-          MYSQL_DATABASE: testing
-          MYSQL_USER: testing
-          MYSQL_PASSWORD: testing
-          MYSQL_ALLOW_EMPTY_PASSWORD: yes
-          MYSQL_ROOT_HOST: "%"
-        options: >-
-          --health-cmd="mysqladmin ping --silent"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=3
-        ports:
-          - 3306:3306
-      mariadb:
-        image: mariadb:latest
-        env:
-          MYSQL_DATABASE: testing
-          MYSQL_USER: testing
-          MYSQL_PASSWORD: testing
-          MYSQL_ALLOW_EMPTY_PASSWORD: yes
-          MYSQL_ROOT_HOST: "%"
-        options: >-
-          --health-cmd="mysqladmin ping --silent"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=3
-        ports:
-          - 3307:3306
-      pgsql:
-        image: postgres:14
-        env:
-          POSTGRES_DB: testing
-          POSTGRES_USER: testing
-          POSTGRES_PASSWORD: testing
-        options: >-
-          --health-cmd="pg_isready -U testing"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=3
-        ports:
-          - 5432:5432
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
-      - name: Set up PHP
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: 8.2
-          extensions: mbstring, pdo_mysql, pdo_pgsql, gd
+      - name: Set up Docker Compose
+        run: docker-compose -f docker-compose.yml up -d php82-apache
       - name: Install Composer dependencies
-        run: composer install -n --prefer-dist --no-progress -o
+        run: docker exec php82-apache composer install -n --prefer-dist --no-progress -o
       - name: Run tests
         run: |
-          sleep 10
-          mysql --host=127.0.0.1 --port=3306 -e "grant all privileges on *.* to 'testing'@'%' with grant option;"
-          mysql --host=127.0.0.1 --port=3307 -e "grant all privileges on *.* to 'testing'@'%' with grant option;"
-          PGPASSWORD=testing psql --host=127.0.0.1 --port=5432 --username=testing -c "GRANT ALL ON SCHEMA public TO testing;"
-          DB_CONNECTION=mysql DB_HOST=127.0.0.1 DB_PORT=3306 TENANCY_SYSTEM_CONNECTION_NAME=mysql ./vendor/bin/phpunit -c ci.phpunit.xml
-          DB_CONNECTION=mysql DB_HOST=127.0.0.1 DB_PORT=3307 LIMIT_UUID_LENGTH_32=1 TENANCY_SYSTEM_CONNECTION_NAME=mysql ./vendor/bin/phpunit -c ci.phpunit.xml
-          DB_CONNECTION=pgsql DB_HOST=127.0.0.1 DB_PORT=5432 TENANCY_SYSTEM_CONNECTION_NAME=pgsql ./vendor/bin/phpunit -c ci.phpunit.xml
-          DB_CONNECTION=pgsql DB_HOST=127.0.0.1 DB_PORT=5432 TENANCY_SYSTEM_CONNECTION_NAME=pgsql TENANCY_DATABASE_DIVISION_MODE=schema ./vendor/bin/phpunit -c ci.phpunit.xml ./tests/unit-tests/Database/ConnectionTest.php
+          docker exec php82-apache sleep 10
+          docker exec php82-apache mysql --host=mysql -e "grant all privileges on *.* to 'testing'@'%' with grant option;"
+          docker exec php82-apache mysql --host=mariadb -e "grant all privileges on *.* to 'testing'@'%' with grant option;"
+          docker exec php82-apache PGPASSWORD=testing psql --host=pgsql --username=testing -c "GRANT ALL ON SCHEMA public TO testing;"
+          docker exec php82-apache DB_CONNECTION=mysql DB_HOST=mysql TENANCY_SYSTEM_CONNECTION_NAME=mysql ./vendor/bin/phpunit -c ci.phpunit.xml
+          docker exec php82-apache DB_CONNECTION=mysql DB_HOST=mariadb LIMIT_UUID_LENGTH_32=1 TENANCY_SYSTEM_CONNECTION_NAME=mysql ./vendor/bin/phpunit -c ci.phpunit.xml
+          docker exec php82-apache DB_CONNECTION=pgsql DB_HOST=pgsql TENANCY_SYSTEM_CONNECTION_NAME=pgsql ./vendor/bin/phpunit -c ci.phpunit.xml
+          docker exec php82-apache DB_CONNECTION=pgsql DB_HOST=pgsql TENANCY_SYSTEM_CONNECTION_NAME=pgsql TENANCY_DATABASE_DIVISION_MODE=schema ./vendor/bin/phpunit -c ci.phpunit.xml ./tests/unit-tests/Database/ConnectionTest.php
+      - name: Tear down Docker Compose
+        run: docker-compose -f docker-compose.yml down
 
   php_8_2_nginx:
     runs-on: ubuntu-latest
-    services:
-      mysql:
-        image: mysql:latest
-        env:
-          MYSQL_DATABASE: testing
-          MYSQL_USER: testing
-          MYSQL_PASSWORD: testing
-          MYSQL_ALLOW_EMPTY_PASSWORD: yes
-          MYSQL_ROOT_HOST: "%"
-        options: >-
-          --health-cmd="mysqladmin ping --silent"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=3
-        ports:
-          - 3306:3306
-      mariadb:
-        image: mariadb:latest
-        env:
-          MYSQL_DATABASE: testing
-          MYSQL_USER: testing
-          MYSQL_PASSWORD: testing
-          MYSQL_ALLOW_EMPTY_PASSWORD: yes
-          MYSQL_ROOT_HOST: "%"
-        options: >-
-          --health-cmd="mysqladmin ping --silent"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=3
-        ports:
-          - 3307:3306
-      pgsql:
-        image: postgres:14
-        env:
-          POSTGRES_DB: testing
-          POSTGRES_USER: testing
-          POSTGRES_PASSWORD: testing
-        options: >-
-          --health-cmd="pg_isready -U testing"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=3
-        ports:
-          - 5432:5432
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
-      - name: Set up PHP
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: 8.2
-          extensions: mbstring, pdo_mysql, pdo_pgsql, gd
+      - name: Set up Docker Compose
+        run: docker-compose -f docker-compose.yml up -d php82-nginx
       - name: Install Composer dependencies
-        run: composer install -n --prefer-dist --no-progress -o
+        run: docker exec php82-nginx composer install -n --prefer-dist --no-progress -o
       - name: Install Nginx
-        run: sudo apt-get install -y nginx
+        run: docker exec php82-nginx apt-get install -y nginx
       - name: Run tests
         run: |
-          sleep 10
-          mysql --host=127.0.0.1 --port=3306 -e "grant all privileges on *.* to 'testing'@'%' with grant option;"
-          mysql --host=127.0.0.1 --port=3307 -e "grant all privileges on *.* to 'testing'@'%' with grant option;"
-          PGPASSWORD=testing psql --host=127.0.0.1 --port=5432 --username=testing -c "GRANT ALL ON SCHEMA public TO testing;"
-          DB_CONNECTION=mysql DB_HOST=127.0.0.1 DB_PORT=3306 TENANCY_SYSTEM_CONNECTION_NAME=mysql ./vendor/bin/phpunit -c ci.phpunit.xml
-          DB_CONNECTION=mysql DB_HOST=127.0.0.1 DB_PORT=3307 LIMIT_UUID_LENGTH_32=1 TENANCY_SYSTEM_CONNECTION_NAME=mysql ./vendor/bin/phpunit -c ci.phpunit.xml
-          DB_CONNECTION=pgsql DB_HOST=127.0.0.1 DB_PORT=5432 TENANCY_SYSTEM_CONNECTION_NAME=pgsql ./vendor/bin/phpunit -c ci.phpunit.xml
-          DB_CONNECTION=pgsql DB_HOST=127.0.0.1 DB_PORT=5432 TENANCY_SYSTEM_CONNECTION_NAME=pgsql TENANCY_DATABASE_DIVISION_MODE=schema ./vendor/bin/phpunit -c ci.phpunit.xml ./tests/unit-tests/Database/ConnectionTest.php
+          docker exec php82-nginx sleep 10
+          docker exec php82-nginx mysql --host=mysql -e "grant all privileges on *.* to 'testing'@'%' with grant option;"
+          docker exec php82-nginx mysql --host=mariadb -e "grant all privileges on *.* to 'testing'@'%' with grant option;"
+          docker exec php82-nginx PGPASSWORD=testing psql --host=pgsql --username=testing -c "GRANT ALL ON SCHEMA public TO testing;"
+          docker exec php82-nginx DB_CONNECTION=mysql DB_HOST=mysql TENANCY_SYSTEM_CONNECTION_NAME=mysql ./vendor/bin/phpunit -c ci.phpunit.xml
+          docker exec php82-nginx DB_CONNECTION=mysql DB_HOST=mariadb LIMIT_UUID_LENGTH_32=1 TENANCY_SYSTEM_CONNECTION_NAME=mysql ./vendor/bin/phpunit -c ci.phpunit.xml
+          docker exec php82-nginx DB_CONNECTION=pgsql DB_HOST=pgsql TENANCY_SYSTEM_CONNECTION_NAME=pgsql ./vendor/bin/phpunit -c ci.phpunit.xml
+          docker exec php82-nginx DB_CONNECTION=pgsql DB_HOST=pgsql TENANCY_SYSTEM_CONNECTION_NAME=pgsql TENANCY_DATABASE_DIVISION_MODE=schema ./vendor/bin/phpunit -c ci.phpunit.xml ./tests/unit-tests/Database/ConnectionTest.php
+      - name: Tear down Docker Compose
+        run: docker-compose -f docker-compose.yml down
 
   coverage:
     runs-on: ubuntu-latest
-    services:
-      mariadb:
-        image: mariadb:latest
-        env:
-          MYSQL_DATABASE: testing
-          MYSQL_USER: testing
-          MYSQL_PASSWORD: testing
-          MYSQL_ALLOW_EMPTY_PASSWORD: yes
-          MYSQL_ROOT_HOST: "%"
-        options: >-
-          --health-cmd="mysqladmin ping --silent"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=3
-        ports:
-          - 3306:3306
-          - 3307:3306
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
-      - name: Set up PHP
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: 8.1
-          extensions: mbstring, pdo_mysql, pdo_pgsql, gd, xdebug
+      - name: Set up Docker Compose
+        run: docker-compose -f docker-compose.yml up -d php81-apache
       - name: Install Composer dependencies
-        run: composer install -n --prefer-dist --no-progress -o
+        run: docker exec php81-apache composer install -n --prefer-dist --no-progress -o
       - name: Run tests with coverage
         run: |
-          sleep 10
-          mysql --host=127.0.0.1 --port=3306 -e "grant all privileges on *.* to 'testing'@'%' with grant option;"
-          mysql --host=127.0.0.1 --port=3307 -e "grant all privileges on *.* to 'testing'@'%' with grant option;"
-          DB_CONNECTION=mysql DB_HOST=127.0.0.1 DB_PORT=3306 TENANCY_SYSTEM_CONNECTION_NAME=mysql ./vendor/bin/phpunit -c ci.phpunit.xml --coverage-clover=coverage.xml
+          docker exec php81-apache sleep 10
+          docker exec php81-apache mysql --host=mariadb -e "grant all privileges on *.* to 'testing'@'%' with grant option;"
+          docker exec php81-apache DB_CONNECTION=mysql DB_HOST=mariadb TENANCY_SYSTEM_CONNECTION_NAME=mysql ./vendor/bin/phpunit -c ci.phpunit.xml --coverage-clover=coverage.xml
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v2
         with:
@@ -322,3 +120,5 @@ jobs:
           flags: unittests
           name: codecov-umbrella
           fail_ci_if_error: true
+      - name: Tear down Docker Compose
+        run: docker-compose -f docker-compose.yml down
