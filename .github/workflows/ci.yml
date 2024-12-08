@@ -13,7 +13,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
       - name: Set up Docker Compose
-        run: docker-compose -f docker-compose.yml up -d php81-apache
+        run: docker compose -f docker compose.yml up -d php81-apache
       - name: Install Composer dependencies
         run: docker exec php81-apache composer install -n --prefer-dist --no-progress -o
       - name: Run tests
@@ -27,7 +27,7 @@ jobs:
           docker exec php81-apache DB_CONNECTION=pgsql DB_HOST=pgsql TENANCY_SYSTEM_CONNECTION_NAME=pgsql ./vendor/bin/phpunit -c ci.phpunit.xml
           docker exec php81-apache DB_CONNECTION=pgsql DB_HOST=pgsql TENANCY_SYSTEM_CONNECTION_NAME=pgsql TENANCY_DATABASE_DIVISION_MODE=schema ./vendor/bin/phpunit -c ci.phpunit.xml ./tests/unit-tests/Database/ConnectionTest.php
       - name: Tear down Docker Compose
-        run: docker-compose -f docker-compose.yml down
+        run: docker compose -f docker-compose.yml down
 
   php_8_1_nginx:
     runs-on: ubuntu-latest
@@ -35,7 +35,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
       - name: Set up Docker Compose
-        run: docker-compose -f docker-compose.yml up -d php81-nginx
+        run: docker compose -f docker-compose.yml up -d php81-nginx
       - name: Install Composer dependencies
         run: docker exec php81-nginx composer install -n --prefer-dist --no-progress -o
       - name: Install Nginx
@@ -51,7 +51,7 @@ jobs:
           docker exec php81-nginx DB_CONNECTION=pgsql DB_HOST=pgsql TENANCY_SYSTEM_CONNECTION_NAME=pgsql ./vendor/bin/phpunit -c ci.phpunit.xml
           docker exec php81-nginx DB_CONNECTION=pgsql DB_HOST=pgsql TENANCY_SYSTEM_CONNECTION_NAME=pgsql TENANCY_DATABASE_DIVISION_MODE=schema ./vendor/bin/phpunit -c ci.phpunit.xml ./tests/unit-tests/Database/ConnectionTest.php
       - name: Tear down Docker Compose
-        run: docker-compose -f docker-compose.yml down
+        run: docker compose -f docker-compose.yml down
 
   php_8_2_apache:
     runs-on: ubuntu-latest
@@ -59,7 +59,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
       - name: Set up Docker Compose
-        run: docker-compose -f docker-compose.yml up -d php82-apache
+        run: docker compose -f docker-compose.yml up -d php82-apache
       - name: Install Composer dependencies
         run: docker exec php82-apache composer install -n --prefer-dist --no-progress -o
       - name: Run tests
@@ -73,7 +73,7 @@ jobs:
           docker exec php82-apache DB_CONNECTION=pgsql DB_HOST=pgsql TENANCY_SYSTEM_CONNECTION_NAME=pgsql ./vendor/bin/phpunit -c ci.phpunit.xml
           docker exec php82-apache DB_CONNECTION=pgsql DB_HOST=pgsql TENANCY_SYSTEM_CONNECTION_NAME=pgsql TENANCY_DATABASE_DIVISION_MODE=schema ./vendor/bin/phpunit -c ci.phpunit.xml ./tests/unit-tests/Database/ConnectionTest.php
       - name: Tear down Docker Compose
-        run: docker-compose -f docker-compose.yml down
+        run: docker compose -f docker-compose.yml down
 
   php_8_2_nginx:
     runs-on: ubuntu-latest
@@ -81,7 +81,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
       - name: Set up Docker Compose
-        run: docker-compose -f docker-compose.yml up -d php82-nginx
+        run: docker compose -f docker-compose.yml up -d php82-nginx
       - name: Install Composer dependencies
         run: docker exec php82-nginx composer install -n --prefer-dist --no-progress -o
       - name: Install Nginx
@@ -97,7 +97,7 @@ jobs:
           docker exec php82-nginx DB_CONNECTION=pgsql DB_HOST=pgsql TENANCY_SYSTEM_CONNECTION_NAME=pgsql ./vendor/bin/phpunit -c ci.phpunit.xml
           docker exec php82-nginx DB_CONNECTION=pgsql DB_HOST=pgsql TENANCY_SYSTEM_CONNECTION_NAME=pgsql TENANCY_DATABASE_DIVISION_MODE=schema ./vendor/bin/phpunit -c ci.phpunit.xml ./tests/unit-tests/Database/ConnectionTest.php
       - name: Tear down Docker Compose
-        run: docker-compose -f docker-compose.yml down
+        run: docker compose -f docker-compose.yml down
 
   coverage:
     runs-on: ubuntu-latest
@@ -105,7 +105,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
       - name: Set up Docker Compose
-        run: docker-compose -f docker-compose.yml up -d php81-apache
+        run: docker compose -f docker-compose.yml up -d php81-apache
       - name: Install Composer dependencies
         run: docker exec php81-apache composer install -n --prefer-dist --no-progress -o
       - name: Run tests with coverage
@@ -121,4 +121,4 @@ jobs:
           name: codecov-umbrella
           fail_ci_if_error: true
       - name: Tear down Docker Compose
-        run: docker-compose -f docker-compose.yml down
+        run: docker compose -f docker-compose.yml down
