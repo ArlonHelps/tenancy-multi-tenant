@@ -1,0 +1,325 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  php-8.1-apache:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:latest
+        env:
+          MYSQL_DATABASE: testing
+          MYSQL_USER: testing
+          MYSQL_PASSWORD: testing
+          MYSQL_ALLOW_EMPTY_PASSWORD: yes
+          MYSQL_ROOT_HOST: "%"
+        options: >-
+          --health-cmd="mysqladmin ping --silent"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+        ports:
+          - 3306:3306
+      mariadb:
+        image: mariadb:latest
+        env:
+          MYSQL_DATABASE: testing
+          MYSQL_USER: testing
+          MYSQL_PASSWORD: testing
+          MYSQL_ALLOW_EMPTY_PASSWORD: yes
+          MYSQL_ROOT_HOST: "%"
+        options: >-
+          --health-cmd="mysqladmin ping --silent"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+        ports:
+          - 3307:3306
+      pgsql:
+        image: postgres:14
+        env:
+          POSTGRES_DB: testing
+          POSTGRES_USER: testing
+          POSTGRES_PASSWORD: testing
+        options: >-
+          --health-cmd="pg_isready -U testing"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+        ports:
+          - 5432:5432
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: 8.1
+          extensions: mbstring, pdo_mysql, pdo_pgsql, gd
+      - name: Install Composer dependencies
+        run: composer install -n --prefer-dist --no-progress -o
+      - name: Run tests
+        run: |
+          sleep 10
+          mysql --host=127.0.0.1 --port=3306 -e "grant all privileges on *.* to 'testing'@'%' with grant option;"
+          mysql --host=127.0.0.1 --port=3307 -e "grant all privileges on *.* to 'testing'@'%' with grant option;"
+          PGPASSWORD=testing psql --host=127.0.0.1 --port=5432 --username=testing -c "GRANT ALL ON SCHEMA public TO testing;"
+          DB_CONNECTION=mysql DB_HOST=127.0.0.1 DB_PORT=3306 TENANCY_SYSTEM_CONNECTION_NAME=mysql ./vendor/bin/phpunit -c ci.phpunit.xml
+          DB_CONNECTION=mysql DB_HOST=127.0.0.1 DB_PORT=3307 LIMIT_UUID_LENGTH_32=1 TENANCY_SYSTEM_CONNECTION_NAME=mysql ./vendor/bin/phpunit -c ci.phpunit.xml
+          DB_CONNECTION=pgsql DB_HOST=127.0.0.1 DB_PORT=5432 TENANCY_SYSTEM_CONNECTION_NAME=pgsql ./vendor/bin/phpunit -c ci.phpunit.xml
+          DB_CONNECTION=pgsql DB_HOST=127.0.0.1 DB_PORT=5432 TENANCY_SYSTEM_CONNECTION_NAME=pgsql TENANCY_DATABASE_DIVISION_MODE=schema ./vendor/bin/phpunit -c ci.phpunit.xml ./tests/unit-tests/Database/ConnectionTest.php
+
+  php-8.1-nginx:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:latest
+        env:
+          MYSQL_DATABASE: testing
+          MYSQL_USER: testing
+          MYSQL_PASSWORD: testing
+          MYSQL_ALLOW_EMPTY_PASSWORD: yes
+          MYSQL_ROOT_HOST: "%"
+        options: >-
+          --health-cmd="mysqladmin ping --silent"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+        ports:
+          - 3306:3306
+      mariadb:
+        image: mariadb:latest
+        env:
+          MYSQL_DATABASE: testing
+          MYSQL_USER: testing
+          MYSQL_PASSWORD: testing
+          MYSQL_ALLOW_EMPTY_PASSWORD: yes
+          MYSQL_ROOT_HOST: "%"
+        options: >-
+          --health-cmd="mysqladmin ping --silent"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+        ports:
+          - 3307:3306
+      pgsql:
+        image: postgres:14
+        env:
+          POSTGRES_DB: testing
+          POSTGRES_USER: testing
+          POSTGRES_PASSWORD: testing
+        options: >-
+          --health-cmd="pg_isready -U testing"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+        ports:
+          - 5432:5432
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: 8.1
+          extensions: mbstring, pdo_mysql, pdo_pgsql, gd
+      - name: Install Composer dependencies
+        run: composer install -n --prefer-dist --no-progress -o
+      - name: Install Nginx
+        run: sudo apt-get install -y nginx
+      - name: Run tests
+        run: |
+          sleep 10
+          mysql --host=127.0.0.1 --port=3306 -e "grant all privileges on *.* to 'testing'@'%' with grant option;"
+          mysql --host=127.0.0.1 --port=3307 -e "grant all privileges on *.* to 'testing'@'%' with grant option;"
+          PGPASSWORD=testing psql --host=127.0.0.1 --port=5432 --username=testing -c "GRANT ALL ON SCHEMA public TO testing;"
+          DB_CONNECTION=mysql DB_HOST=127.0.0.1 DB_PORT=3306 TENANCY_SYSTEM_CONNECTION_NAME=mysql ./vendor/bin/phpunit -c ci.phpunit.xml
+          DB_CONNECTION=mysql DB_HOST=127.0.0.1 DB_PORT=3307 LIMIT_UUID_LENGTH_32=1 TENANCY_SYSTEM_CONNECTION_NAME=mysql ./vendor/bin/phpunit -c ci.phpunit.xml
+          DB_CONNECTION=pgsql DB_HOST=127.0.0.1 DB_PORT=5432 TENANCY_SYSTEM_CONNECTION_NAME=pgsql ./vendor/bin/phpunit -c ci.phpunit.xml
+          DB_CONNECTION=pgsql DB_HOST=127.0.0.1 DB_PORT=5432 TENANCY_SYSTEM_CONNECTION_NAME=pgsql TENANCY_DATABASE_DIVISION_MODE=schema ./vendor/bin/phpunit -c ci.phpunit.xml ./tests/unit-tests/Database/ConnectionTest.php
+
+  php-8.2-apache:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:latest
+        env:
+          MYSQL_DATABASE: testing
+          MYSQL_USER: testing
+          MYSQL_PASSWORD: testing
+          MYSQL_ALLOW_EMPTY_PASSWORD: yes
+          MYSQL_ROOT_HOST: "%"
+        options: >-
+          --health-cmd="mysqladmin ping --silent"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+        ports:
+          - 3306:3306
+      mariadb:
+        image: mariadb:latest
+        env:
+          MYSQL_DATABASE: testing
+          MYSQL_USER: testing
+          MYSQL_PASSWORD: testing
+          MYSQL_ALLOW_EMPTY_PASSWORD: yes
+          MYSQL_ROOT_HOST: "%"
+        options: >-
+          --health-cmd="mysqladmin ping --silent"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+        ports:
+          - 3307:3306
+      pgsql:
+        image: postgres:14
+        env:
+          POSTGRES_DB: testing
+          POSTGRES_USER: testing
+          POSTGRES_PASSWORD: testing
+        options: >-
+          --health-cmd="pg_isready -U testing"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+        ports:
+          - 5432:5432
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: 8.2
+          extensions: mbstring, pdo_mysql, pdo_pgsql, gd
+      - name: Install Composer dependencies
+        run: composer install -n --prefer-dist --no-progress -o
+      - name: Run tests
+        run: |
+          sleep 10
+          mysql --host=127.0.0.1 --port=3306 -e "grant all privileges on *.* to 'testing'@'%' with grant option;"
+          mysql --host=127.0.0.1 --port=3307 -e "grant all privileges on *.* to 'testing'@'%' with grant option;"
+          PGPASSWORD=testing psql --host=127.0.0.1 --port=5432 --username=testing -c "GRANT ALL ON SCHEMA public TO testing;"
+          DB_CONNECTION=mysql DB_HOST=127.0.0.1 DB_PORT=3306 TENANCY_SYSTEM_CONNECTION_NAME=mysql ./vendor/bin/phpunit -c ci.phpunit.xml
+          DB_CONNECTION=mysql DB_HOST=127.0.0.1 DB_PORT=3307 LIMIT_UUID_LENGTH_32=1 TENANCY_SYSTEM_CONNECTION_NAME=mysql ./vendor/bin/phpunit -c ci.phpunit.xml
+          DB_CONNECTION=pgsql DB_HOST=127.0.0.1 DB_PORT=5432 TENANCY_SYSTEM_CONNECTION_NAME=pgsql ./vendor/bin/phpunit -c ci.phpunit.xml
+          DB_CONNECTION=pgsql DB_HOST=127.0.0.1 DB_PORT=5432 TENANCY_SYSTEM_CONNECTION_NAME=pgsql TENANCY_DATABASE_DIVISION_MODE=schema ./vendor/bin/phpunit -c ci.phpunit.xml ./tests/unit-tests/Database/ConnectionTest.php
+
+  php-8.2-nginx:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:latest
+        env:
+          MYSQL_DATABASE: testing
+          MYSQL_USER: testing
+          MYSQL_PASSWORD: testing
+          MYSQL_ALLOW_EMPTY_PASSWORD: yes
+          MYSQL_ROOT_HOST: "%"
+        options: >-
+          --health-cmd="mysqladmin ping --silent"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+        ports:
+          - 3306:3306
+      mariadb:
+        image: mariadb:latest
+        env:
+          MYSQL_DATABASE: testing
+          MYSQL_USER: testing
+          MYSQL_PASSWORD: testing
+          MYSQL_ALLOW_EMPTY_PASSWORD: yes
+          MYSQL_ROOT_HOST: "%"
+        options: >-
+          --health-cmd="mysqladmin ping --silent"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+        ports:
+          - 3307:3306
+      pgsql:
+        image: postgres:14
+        env:
+          POSTGRES_DB: testing
+          POSTGRES_USER: testing
+          POSTGRES_PASSWORD: testing
+        options: >-
+          --health-cmd="pg_isready -U testing"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+        ports:
+          - 5432:5432
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: 8.2
+          extensions: mbstring, pdo_mysql, pdo_pgsql, gd
+      - name: Install Composer dependencies
+        run: composer install -n --prefer-dist --no-progress -o
+      - name: Install Nginx
+        run: sudo apt-get install -y nginx
+      - name: Run tests
+        run: |
+          sleep 10
+          mysql --host=127.0.0.1 --port=3306 -e "grant all privileges on *.* to 'testing'@'%' with grant option;"
+          mysql --host=127.0.0.1 --port=3307 -e "grant all privileges on *.* to 'testing'@'%' with grant option;"
+          PGPASSWORD=testing psql --host=127.0.0.1 --port=5432 --username=testing -c "GRANT ALL ON SCHEMA public TO testing;"
+          DB_CONNECTION=mysql DB_HOST=127.0.0.1 DB_PORT=3306 TENANCY_SYSTEM_CONNECTION_NAME=mysql ./vendor/bin/phpunit -c ci.phpunit.xml
+          DB_CONNECTION=mysql DB_HOST=127.0.0.1 DB_PORT=3307 LIMIT_UUID_LENGTH_32=1 TENANCY_SYSTEM_CONNECTION_NAME=mysql ./vendor/bin/phpunit -c ci.phpunit.xml
+          DB_CONNECTION=pgsql DB_HOST=127.0.0.1 DB_PORT=5432 TENANCY_SYSTEM_CONNECTION_NAME=pgsql ./vendor/bin/phpunit -c ci.phpunit.xml
+          DB_CONNECTION=pgsql DB_HOST=127.0.0.1 DB_PORT=5432 TENANCY_SYSTEM_CONNECTION_NAME=pgsql TENANCY_DATABASE_DIVISION_MODE=schema ./vendor/bin/phpunit -c ci.phpunit.xml ./tests/unit-tests/Database/ConnectionTest.php
+
+  coverage:
+    runs-on: ubuntu-latest
+    services:
+      mariadb:
+        image: mariadb:latest
+        env:
+          MYSQL_DATABASE: testing
+          MYSQL_USER: testing
+          MYSQL_PASSWORD: testing
+          MYSQL_ALLOW_EMPTY_PASSWORD: yes
+          MYSQL_ROOT_HOST: "%"
+        options: >-
+          --health-cmd="mysqladmin ping --silent"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+        ports:
+          - 3306:3306
+          - 3307:3306
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: 8.1
+          extensions: mbstring, pdo_mysql, pdo_pgsql, gd, xdebug
+      - name: Install Composer dependencies
+        run: composer install -n --prefer-dist --no-progress -o
+      - name: Run tests with coverage
+        run: |
+          sleep 10
+          mysql --host=127.0.0.1 --port=3306 -e "grant all privileges on *.* to 'testing'@'%' with grant option;"
+          mysql --host=127.0.0.1 --port=3307 -e "grant all privileges on *.* to 'testing'@'%' with grant option;"
+          DB_CONNECTION=mysql DB_HOST=127.0.0.1 DB_PORT=3306 TENANCY_SYSTEM_CONNECTION_NAME=mysql ./vendor/bin/phpunit -c ci.phpunit.xml --coverage-clover=coverage.xml
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v2
+        with:
+          files: ./coverage.xml
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: true
