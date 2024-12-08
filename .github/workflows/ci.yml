@@ -13,7 +13,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
       - name: Set up Docker Compose
-        run: docker compose -f docker compose.yml up -d php81-apache
+        run: docker compose -f docker-compose.yml up -d php81-apache
       - name: Install Composer dependencies
         run: docker exec php81-apache composer install -n --prefer-dist --no-progress -o
       - name: Run tests
